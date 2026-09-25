@@ -1,7 +1,9 @@
-# UN1CA 빌드 & 환경 설정 가이드 (o1s — Galaxy S21 5G Exynos)
+# UN1CA 빌드 & 환경 설정 가이드 (t2s — Galaxy S21+ 5G Exynos)
 
-> 작성일: 2026-09-21 · 기준 브랜치: `sixteen`
-> 대상: 이 저장소(`UN1CA`) 를 처음 받아서 **Galaxy S21 5G (Exynos) = `o1s`** 용 커스텀 롬을 빌드하는 경우
+> 작성일: 2026-09-21 · 개정: 2026-09-26 (작업 대상 `o1s` → `t2s` 로 변경)
+> 기준 브랜치: `main`
+> 대상: 이 저장소(`UN1CA`) 를 받아서 **Galaxy S21+ 5G (Exynos) = `t2s`** 용 커스텀 롬을 빌드하는 경우
+> 실기기: **SM-G996N (한국 내수용)** — 산출물은 SM-G996B(유럽)/SM-G996N(한국) 통합 패키지
 
 ---
 
@@ -20,22 +22,27 @@ KnoxPatch, Play Integrity Fix, 다중 사용자, Debloat 등)을 얹은 **플래
 5. 패치된 APK/JAR 재빌드 (apktool)
 6. 플래셔블(!) OTA 방식 zip 생성 (에디파이 edify 인스톨러 포함)
 
-원본 저장소: https://github.com/salvogiangri/UN1CA  (본 저장소는 이걸 그대로 클론한 것)
+원본 저장소: https://github.com/salvogiangri/UN1CA
+(본 저장소의 원격은 `https://github.com/aospforhuina/UN1CA` 로, 재구성된 클론입니다)
 
 ---
 
-## 2. 현재 저장소 상태 (2026-09-21 체크 기준)
+## 2. 현재 저장소 상태 (2026-09-26 실측)
 
 | 항목 | 상태 |
 |---|---|
-| Git 브랜치 | `sixteen` (origin/sixteen 일치) |
-| Git 원격 | `https://github.com/salvogiangri/UN1CA` |
-| HEAD 커밋 | `45c65184 prebuilts: samsung: gts1 1xx: nuke` |
-| external 서브모듈 | **아직 초기화 안 됨** (`git submodule status` 앞에 `-` 표시) |
-| 저장소 크기 | 약 2.8 GB (대부분 `prebuilts/samsung` 2.4 GB) |
+| Git 브랜치 | `main` |
+| Git 원격 | `https://github.com/aospforhuina/UN1CA` |
+| HEAD 커밋 | `ad5fe00 cleaned readme.md` (그 아래 `fa24aee Initial commit: Reconstructed project`) |
+| external 서브모듈 | **초기화 불가 — gitlink 미등록** (아래 ⚠️ 참조) |
 | `out/` 디렉터리 | 없음 (아직 빌드 안 함) |
+| 작업 대상 | **`t2s`** = Galaxy S21+ 5G (Exynos), 실기기 SM-G996N |
 
-> ⚠️ 서브모듈 미초기화 상태이므로 **빌드 전에 반드시** 5장의 서브모듈 초기화를 실행해야 합니다.
+> ⚠️ **`git submodule update --init --recursive` 가 이 저장소에서는 동작하지 않습니다.**
+> 재구성된 클론이라 index 에 gitlink 엔트리(`160000`)가 없어서 위 명령이 **아무 출력 없이 no-op** 으로
+> 끝나고, `external/{android-tools,apktool,erofs-utils,img2sdat,samloader,signapk}` 는 **빈 디렉터리**로
+> 남습니다. 확인: `git ls-files -s | awk '$1=="160000"'` (아무것도 안 나오면 gitlink 없음).
+> → 5장의 "서브모듈 초기화" 대신 **`.gitmodules` 의 URL 로 직접 클론**해야 합니다.
 
 ---
 
@@ -46,7 +53,7 @@ KnoxPatch, Play Integrity Fix, 다중 사용자, Debloat 등)을 얹은 **플래
 - RAM: 16 GB 이상 권장 (12~19 GB면 충분, CI는 8 GB 러너로도 빌드함)
 - 디스크: **여유 80 GB 이상 권장**
   - `out/`: 펌웨어 2종(BAS, 순정 S22 + 목표 기기) + tools + work_dir + zip 들이 쌓임
-  - o1s 슈퍼 파티션 자체가 ~10.6 GiB (11,429,478,400 B) → work_dir/이미지/zip이 각각 수 GB~10 GB+
+  - t2s 슈퍼 파티션 자체가 ~10.6 GiB (11,429,478,400 B) → work_dir/이미지/zip이 각각 수 GB~10 GB+
 - 인터넷: 필수 (FUS, GitHub releases, Gradle 의존성 다운로드)
 
 ### 3.2 OS
@@ -118,9 +125,14 @@ sudo modprobe erofs f2fs
 ```bash
 cd /home/arch/disk2/UN1CA
 
-# 1) 서브모듈 초기화 (외부 툴 소스 6종 — 필수!)
-git submodule update --init --recursive
-#    ㄴ external/android-tools, apktool, erofs-utils, img2sdat, samloader, signapk
+# 1) 외부 툴 소스 6종 확보 — ★ 수동 클론 (서브모듈 명령이 동작하지 않음)
+#    git submodule update --init --recursive 는 이 저장소에서 no-op 이다 (2장 ⚠️ 참조)
+git clone https://github.com/UN1CA/external_android-tools.git      external/android-tools
+git clone https://github.com/iBotPeaches/Apktool.git               external/apktool
+git clone https://github.com/sekaiacg/erofs-utils.git              external/erofs-utils
+git clone https://github.com/UN1CA/external_img2sdat.git           external/img2sdat
+git clone https://github.com/ananjaser1211/samloader.git           external/samloader
+git clone https://github.com/UN1CA/external_signapk.git            external/signapk
 
 # 2) (권장) git 사용자 정보 — 일부 툴 빌드에서 필요할 수 있음
 git config --global user.name  "Your Name"
@@ -129,12 +141,19 @@ git config --global user.email "you@example.com"
 # 3) 커널 모듈 로드
 sudo modprobe erofs f2fs
 
-# 4) JDK 17로 전환 (sdkman 사용 시)
-source ~/.sdkman/bin/sdkman-init.sh && sdk use java 17.0.14-tem
-export JAVA_HOME=$HOME/.sdkman/candidates/java/17.0.14-tem
+# 4) JDK 17 준비 (apktool/signapk 의 Gradle 빌드는 JDK 17 필요, 최신 JDK 에서 깨짐)
+sudo pacman -S --needed jdk17-openjdk lld
+#    또는 sdkman 으로 Temurin 17:
+#    source ~/.sdkman/bin/sdkman-init.sh && sdk use java 17.0.14-tem
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk
 export PATH="$JAVA_HOME/bin:$PATH"
 java -version   # openjdk 17 확인
 ```
+
+> ⚠️ **gitlink 가 없으므로 각 서브모듈의 원래 고정 커밋을 알 수 없습니다.** 위처럼 기본 브랜치 HEAD 를
+> 클론하면 upstream 이 의도한 버전과 다를 수 있습니다. 특히 `external/apktool` 은
+> `external/patches/apktool/0001-feat-support-aapt-optimization.patch` 를 `git apply` 하므로
+> 패치가 실패하면 해당 시점에 맞는 태그/커밋으로 체크아웃해야 합니다.
 
 ## 6. 빌드 환경 불러오기 — `buildenv.sh`
 
@@ -142,15 +161,15 @@ java -version   # openjdk 17 확인
 
 ```bash
 cd /home/arch/disk2/UN1CA
-source buildenv.sh o1s           # 일반 빌드
-# source buildenv.sh --debug o1s # 디버그(무서명) 빌드
+source buildenv.sh t2s           # 일반 빌드
+# source buildenv.sh --debug t2s # 디버그(무서명) 빌드
 ```
 
 실행 결과 예시 (`out/config.sh` 생성 후 출력):
 ```
 ==============================
-TARGET_NAME="Galaxy S21 5G (Exynos)"
-TARGET_CODENAME="o1s"
+TARGET_NAME="Galaxy S21+ 5G (Exynos)"
+TARGET_CODENAME="t2s"
 ...
 ROM_VERSION="3.2.0-<hash>"
 ==============================
@@ -161,7 +180,7 @@ ROM_VERSION="3.2.0-<hash>"
   `TOOLS_DIR`, `WORK_DIR`, `APKTOOL_DIR`, `TMP_DIR` 내보내기
 - `$TOOLS_DIR/bin` 을 PATH에 추가
 - `out/config.sh` 자동 생성:
-  `unica/configs/version.sh` + `target/o1s/config.sh` + `platform/exynos2100/config.sh` + `unica/configs/essi.sh` 병합
+  `unica/configs/version.sh` + `target/t2s/config.sh` + `platform/exynos2100/config.sh` + `unica/configs/essi.sh` 병합
 - `unica` 별칭 → `scripts/<명령>.sh` 실행기
 - `croot` → 저장소 루트로 cd
 
@@ -185,7 +204,7 @@ UN1CA/
 ├── .github/
 │   ├── workflows/ci.yml     # CI: shellcheck + 모든 타겟 빌드 (Ubuntu 24.04)
 │   └── workflows/blobs.yml  # 매일 prebuilts 갱신 PR 생성 (서명 키 시크릿 사용)
-├── external/                # ★ 서브모듈 (git submodule update 필수)
+├── external/                # ★ 외부 툴 소스 — 수동 클론 필요 (gitlink 미등록, 5장 참조)
 │   ├── android-tools/       #   구글 안드로이드 도구 포크 (adb/fastboot/e2fsdroid/lpmake/avbtool 등)
 │   ├── apktool/             #   APK 추출/리패키징 도구 (smali 패치 후 재빌드에 사용)
 │   ├── erofs-utils/         #   EROFS 파일시스템 도구 (mkfs/fsck/dump/extract.erofs)
@@ -195,7 +214,7 @@ UN1CA/
 │   ├── make.sh              #   위 툴들을 단독 빌드하는 스크립트
 │   └── patches/apktool/     #   apktool에 적용되는 패치 (aapt 최적화)
 ├── platform/                # ★ SoC 플랫폼 정의 (exynos2100 / sm7125 / sm7325 / sm8450)
-│   └── exynos2100/          #   o1s의 플랫폼
+│   └── exynos2100/          #   t2s의 플랫폼
 │       ├── config.sh        #   파티션 크기/BOARD API 레벨/Wi-Fi·BT 기능 플래그
 │       ├── debloat.sh       #   플랫폼 공통 제거 앱 목록
 │       ├── sff.sh           #   SEC Floating Feature 목록
@@ -231,7 +250,7 @@ UN1CA/
 │   └── unica_platform.pk8/.pem, unica_ota.*     # ★ 실제 UN1CA 서명 키 — gitignore로 저장소에 없음
 │                                                #   (테스트 서명으로 대체되어 빌드는 진행됨)
 ├── target/                  # ★ 기기 정의 15개 (a52q, a53x, a71, b0q, o1s, p3s, r9s, t2s ...)
-│   └── o1s/                 #   대상 기기: Galaxy S21 5G (Exynos) — 상세는 8장
+│   └── t2s/                 #   대상 기기: Galaxy S21+ 5G (Exynos) — 상세는 8장
 ├── unica/                   # ★ ROM 공통 코어
 │   ├── configs/
 │   │   ├── version.sh       #   롬 버전 (3.2.0 + git 해시/-dirty 자동 부착)
@@ -265,23 +284,23 @@ UN1CA/
 
 ---
 
-## 8. o1s 타겟 상세
+## 8. t2s 타겟 상세
 
-`target/o1s/` — **Galaxy S21 5G (Exynos)** 전용 정의
+`target/t2s/` — **Galaxy S21+ 5G (Exynos)** 전용 정의
 
 | 항목 | 값 |
 |---|---|
-| TARGET_NAME | `Galaxy S21 5G (Exynos)` |
-| TARGET_CODENAME | `o1s` |
+| TARGET_NAME | `Galaxy S21+ 5G (Exynos)` |
+| TARGET_CODENAME | `t2s` |
 | TARGET_PLATFORM | `exynos2100` (Exynos 2100, 한때 “부다페스트” SoC) |
-| TARGET_FIRMWARE | `SM-G991B/AUT/350261971234566` (목표 순정 펌웨어: SM-G991B, 유럽 AUT CSC, IMEI) |
+| TARGET_FIRMWARE | `SM-G996B/AUT/355399273736683` (목표 순정 펌웨어: SM-G996B, 유럽 AUT CSC, IMEI) |
 | SOURCE_FIRMWARE (essi) | `SM-S901B/EUX/350330051234562` (베이스: Galaxy S22 Exynos One UI 8.0) |
 | 단일 시스템 이미지 | `essi` (Exynos Single System Image) |
 | 슈퍼 파티션 크기 | 11,429,478,400 B (~10.6 GiB) |
 | SDK 버전 | 기기 35 / 소스 36 |
 | 주요 하드웨어 특성 | 120 Hz HFR, MDNIE HW, eSE(NXP), 지문(초음파), 듀얼 스피커, eSIM |
 
-### 주요 파일 역할 (`target/o1s/`)
+### 주요 파일 역할 (`target/t2s/`)
 
 | 파일 | 역할 |
 |---|---|
@@ -289,37 +308,39 @@ UN1CA/
 | `sff.sh` | SEC Floating Feature (AOD 라이브 클럭, 추가 밝기) |
 | `debloat.sh` | 이 기기에서 제거할 앱 (`WifiRROverlayAppH2E` 등) |
 | `installer/customize.sh` | 플래셔블 zip 생성 시 UN1CA GitHub releases에서 `modem/vbmeta` 등 **프로프라이어터리 펌웨어 tar** 4종 다운로드·검증·복호화·패치 |
-| `installer/assertions.edify` | 설치 전 기기 판정: 부트로더 버전 강제 (`G991BXXSJHZC2` / `G991NKSSCHZA9`), afaneh92 복구 차단 |
+| `installer/assertions.edify` | 설치 전 기기 판정: 부트로더 버전 강제 (`G996BXXSJHZC2` / `G996NKSSCHZA9`), afaneh92 복구 차단 |
 | `installer/install-end.edify` | 설치 중 `/dev/block/by-name/bota`(및 radio/vbmeta)에 dpm/harx/keystorage/ldfw/sboot/ssp/tzar/tzsw/uh/up_param/vddcal_fw **오프셋 단위 write** |
 | `overlay/values/*.xml` | 기기 프로퍼티 오버라이드 (예: 노치/디스플레이 컷아웃 좌표) |
 | `camera/camera-feature.xml` | 카메라 피처 XML |
 | `dvfs/siop_model.xml` | 전원(성능) 관리 모델 |
 | `vintf/` | 기기 인터페이스(센서 등) 정의 |
 | `patches/raw_camera/` | `libexynoscamera3.so` 바이너리 HEX 패치 — 모든 카메라에서 RAW 강제 지원 |
-| `patches/variants/` | **변종 통합 모듈**: SM-G991B(유럽)와 SM-G991N(한국)을 하나의 vendor로 통합. G991N 펌웨어 blobs(NFC `libsn100u_fw.so`, TEE, vts.bin 등)를 G991B 경로로 이식 + SELinux 규칙 추가 |
+| `patches/variants/` | **변종 통합 모듈**: SM-G996B(유럽)와 **SM-G996N(한국)** 을 하나의 vendor로 통합. G996N 펌웨어 blobs(`vendor/firmware/SM-G996N/` 의 NFC `libsn100u_fw.so`, `vts.bin`, NPU/mfc/audio bin 등 + `vendor/tee_SM-G996N/` TEE 파일 일체)를 G996B 경로로 이식 + `init.t2s.unify.rc` / SELinux 규칙 추가 |
 
-> ℹ️ `installer/assertions.edify`·`install-end.edify`를 보면 알 수 있듯, **SM-G991B(유럽)와 SM-G991N(한국) 2개 변종**이 정의되어 있습니다.
-> 빌드 결과 zip은 두 변종 모두에 설치 가능한 통합 패키지입니다.
+> ℹ️ `installer/assertions.edify` 를 보면 **SM-G996B(유럽)와 SM-G996N(한국) 2개 변종**이 정의되어 있고,
+> `patches/variants/` 에 G996N 전용 blobs 가 이미 들어 있습니다.
+> 즉 **빌드 결과 zip 은 G996N 국내 내수용 기기에 그대로 설치 가능한 통합 패키지**입니다.
+> `TARGET_FIRMWARE` 가 유럽(`SM-G996B/AUT`) 기준인 것은 변종 통합 방식상 의도된 구조입니다.
 
 ---
 
-## 9. o1s 빌드 절차 (실행 순서)
+## 9. t2s 빌드 절차 (실행 순서)
 
 ```bash
 cd /home/arch/disk2/UN1CA
 
-# 0) (위 5~6장 참고) 서브모듈 초기화 + JDK 17 세팅
-git submodule update --init --recursive
+# 0) (위 5~6장 참고) external 6종 수동 클론 + JDK 17 / lld 설치
+#    ※ git submodule update --init --recursive 는 이 저장소에서 no-op
 
 # 1) 빌드 환경 로드 (매 새 터미널에서 실행)
-source buildenv.sh o1s
+source buildenv.sh t2s
 
 # 2) 필수 도구 자동 빌드 → out/tools (android-tools, apktool, erofs-utils,
 #    img2sdat, samloader(venv), signapk) ※ 30분~1시간 이상 소요
 ./scripts/build_dependencies.sh
 
 # 3) 삼성 FUS에서 순정 펌웨어 2종 다운로드 → out/odin
-#    (SOURCE: SM-S901B/EUX..., TARGET: SM-G991B/AUT...)
+#    (SOURCE: SM-S901B/EUX..., TARGET: SM-G996B/AUT...)
 #    ※ samloader가 필요하므로 2)를 먼저 실행할 것 / 재시도: -f
 ./scripts/download_fw.sh
 
@@ -334,7 +355,7 @@ source buildenv.sh o1s
 #    -x, --no-target-files  : work_dir까지만, zip 만들지 않음
 
 # 6) (5에서 -z 안 했으면) 최종 플래셔블 zip 생성
-./scripts/build_flashable_zip.sh out/o1s_*-target_files.zip
+./scripts/build_flashable_zip.sh out/t2s_*-target_files.zip
 ```
 
 > 5번의 `make_rom.sh`는 펌웨어가 없으면 **3~4단계를 자동으로 실행**합니다.
@@ -342,26 +363,28 @@ source buildenv.sh o1s
 > (Ci 워크플로우도 `build_dependencies → download_fw → extract_fw → make_rom` 순서를 사용)
 
 ### 빌드가 내부적으로 하는 일 (make_rom.sh)
-1. `platform/exynos2100/patches` → `target/o1s/patches` → `unica/patches` → `unica/mods` 순으로 `apply_modules.sh` 실행
+1. `platform/exynos2100/patches` → `target/t2s/patches` → `unica/patches` → `unica/mods` 순으로 `apply_modules.sh` 실행
 2. `smali/` 패치 수만큼 apktool로 APK/JAR 재빌드
-3. `build_info.txt`와 함께 `out/o1s_<버전>-target_files.zip` 생성
+3. `build_info.txt`와 함께 `out/t2s_<버전>-target_files.zip` 생성
 4. (`-z`) `build_flashable_zip.sh` → OTA용 edify 인스톨러 + 기기별 프로프라이어터리 펌웨어 포함한 최종 zip 생성
 
 ### 산출물
 | 생성물 | 위치 |
 |---|---|
 | 도구들 | `out/tools/bin/*` |
-| 다운로드 펌웨어 | `out/odin/SM-G991B_AUT/.downloaded` 등 |
-| 추출 펌웨어 | `out/fw/SM-G991B_AUT/system.img` 등 |
-| 패치 작업 트리 | `out/target/o1s/work_dir/` |
-| target-files zip | `out/o1s_3.2.0-<hash>-target_files.zip` |
-| **플래셔블 zip** | `out/UN1CA_3.2.0-<hash>_<날짜>_o1s-sign.zip` (무서명 빌드는 `-sign` 없음) |
-| 실행 로그 | `out/target/o1s/<명령>-<타임스탬프>.log` (ANSI 컬러 제거) |
+| 다운로드 펌웨어 | `out/odin/SM-G996B_AUT/.downloaded` 등 |
+| 추출 펌웨어 | `out/fw/SM-G996B_AUT/system.img` 등 |
+| 패치 작업 트리 | `out/target/t2s/work_dir/` |
+| target-files zip | `out/t2s_3.2.0-<hash>-target_files.zip` |
+| **플래셔블 zip** | `out/UN1CA_3.2.0-<hash>_<날짜>_t2s-sign.zip` (무서명 빌드는 `-sign` 없음) |
+| 실행 로그 | `out/target/t2s/<명령>-<타임스탬프>.log` (ANSI 컬러 제거) |
 
 ### 설치 방법 (개요)
 - 생성된 `UN1CA_*.zip` 은 기기 설치용 패키지입니다. 설치는 삼성 복구/OTA 방식(에디파이 인스톨러)으로 진행되며,
   자세한 설치는 UN1CA 공식 채널(README의 Discussions/Telegram)과 원저작자의 지침을 따르세요.
-- 순정 펌웨어 설치 상태가 요구됩니다: `assertions.edify`가 부트로더 버전(`G991BXXSJHZC2` 유럽 / `G991NKSSCHZA9` 한국)을 검사합니다.
+- 순정 펌웨어 설치 상태가 요구됩니다: `assertions.edify` 가 부트로더 버전을 검사합니다 —
+  **SM-G996N(한국 내수용)은 `G996NKSSCHZA9`**, SM-G996B(유럽)는 `G996BXXSJHZC2`.
+  그보다 최신 부트로더면 설치가 거부됩니다.
 - 설치 후 업데이트는 롬에 내장된 **UN1CA OTA 업데이트 앱**으로 진행할 수 있습니다.
 
 ---
@@ -370,7 +393,7 @@ source buildenv.sh o1s
 
 | 증상 | 원인/해결 |
 |---|---|
-| `external/*` 이 비어 있다 | 서브모듈 미초기화 → `git submodule update --init --recursive` |
+| `external/*` 이 비어 있다 | **이 저장소에서는 `git submodule update --init --recursive` 가 no-op 이다** (gitlink 미등록). 5장대로 `.gitmodules` URL 로 직접 클론할 것 |
 | `The following dependencies are missing` | 4장의 패키지 누락 → 해당 패키지 설치 후 재시도 |
 | erofs/f2fs mount 실패 | `sudo modprobe erofs f2fs`, 커널은 리눅스(스톡) 권장 |
 | FUS 다운로드 실패/타임아웃 | 네트워크 문제가 흔함 → `./scripts/download_fw.sh -f` 로 재시도 |
@@ -379,6 +402,9 @@ source buildenv.sh o1s
 | 빌드 중단 후 재개 | `make_rom.sh`는 해시로 변경 감지 → 변경 없으면 스킵, 강제는 `-f` |
 | `security/unica_*.pk8` 없음 경고 | 정상 — 실제 키는 저장소에 없음. 무서명(`--debug`) 또는 테스트 키로 빌드됨 |
 | GitHub 액세스 불가 | `installer/customize.sh`가 releases에서 프로프라이어터리 펌웨어를 받으므로 GitHub 접근 필요 |
+| 설치 중 `E3003` | 부트로더 버전 불일치 — SM-G996N 은 `G996NKSSCHZA9` 필요 (더 최신이면 거부) |
+| 설치 중 `E3000` | afaneh92 복구 사용 중 — 다른 복구로 교체 필요 |
+| `lld: command not found` / LTO 링크 실패 | `sudo pacman -S lld` |
 
 ---
 
@@ -386,7 +412,7 @@ source buildenv.sh o1s
 
 - CI 구성 (Ubuntu 24.04): `shellcheck` → 매트릭스 빌드(모든 target) → `build_dependencies.sh` → `download_fw.sh` → `extract_fw.sh` → `make_rom.sh`
 - 빌드 순정 펌웨어는 삼성 FUS에서 내려받으므로 **재배포 금지 라이선스**에 유의하세요.
-- 라이선스: GPL-3.0 (외부 의존성은 각각의 라이선스: Apache-2.0, MIT, GPL-2.0 등 — README 87~93행)
+- 라이선스: GPL-3.0 (외부 의존성은 각각의 라이선스: Apache-2.0, MIT, GPL-2.0 등 — README "라이선스 & 기여" 절)
 - 외부 툴: android-tools, apktool, erofs-utils, img2sdat, samloader, signapk
-- 디버그 빌드: `source buildenv.sh --debug o1s` 후 빌드 → 무서명 zip이 생성됨
+- 디버그 빌드: `source buildenv.sh --debug t2s` 후 빌드 → 무서명 zip이 생성됨
 - 서명 키가 없어도 빌드는 정상 진행됩니다. (실제 UN1CA 서명 zip을 만들려면 프로젝트 소유자의 키가 필요)
