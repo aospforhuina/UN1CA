@@ -235,11 +235,12 @@ CI 는 GitHub Secrets 로 실제 키를 주입한다.
 
 - **`source buildenv.sh <target>` 없이는 어떤 스크립트도 실행되지 않는다.** 모든 스크립트가 `$SRC_DIR`
   부재 시 즉시 실패한다. 터미널을 새로 열 때마다 다시 source 해야 한다.
-- **이 저장소의 `external/*` 서브모듈은 실제 gitlink 로 등록되어 있지 않다.** 재구성된 클론이라
-  index 에 gitlink 엔트리가 없어서 `git submodule update --init --recursive` 가 **아무 메시지 없이 no-op**
-  으로 끝나고, `external/{android-tools,apktool,erofs-utils,img2sdat,samloader,signapk}` 는 빈 디렉터리다.
-  이 상태로 `build_dependencies.sh` 를 돌리면 실패한다. `.gitmodules` 에 적힌 URL 로 직접 클론해 넣어야 한다.
-  확인: `git ls-files -s | awk '$1=="160000"'` (아무것도 안 나오면 gitlink 없음).
+- **`external/*` 서브모듈은 커밋 `43d6c3bb` 에서 복원되었다.** 이 저장소는 재구성된 클론이라 원래
+  index 에 gitlink 엔트리(`160000`)가 없었고, 그래서 `git submodule update --init --recursive` 가
+  **아무 메시지 없이 no-op** 으로 끝나 `external/*` 가 빈 디렉터리로 남았다.
+  upstream(`salvogiangri/UN1CA`, `sixteen`)의 gitlink 6개를 커밋해 넣었으므로 이제 정상 동작한다.
+  확인: `git submodule status` (앞에 `-` 면 미클론, SHA 만 나오면 정상).
+  만약 이 커밋이 없는 옛 클론을 쓰고 있다면 gitlink 가 다시 없을 수 있으니 위 명령으로 먼저 확인할 것.
 - JDK **17** 이 필요하다 (apktool / signapk 의 Gradle 빌드). 최신 JDK 에서는 깨진다.
 - `erofs`, `f2fs` 커널 모듈을 로드해야 한다: `sudo modprobe erofs f2fs`.
 - 디스크 여유 80 GB 이상 권장 (슈퍼 파티션 10.6 GiB + 펌웨어 2종 + 중간 산출물).
@@ -291,8 +292,8 @@ CI 는 GitHub Secrets 로 실제 키를 주입한다.
 | 항목 | 상태 |
 |---|---|
 | 브랜치 / 원격 | `main` / `origin = https://github.com/aospforhuina/UN1CA.git` |
-| 커밋 | `ad5fe00 cleaned readme.md`, `fa24aee Initial commit: Reconstructed project` |
-| `external/*` 6종 | **전부 빈 디렉터리 (파일 0개)** — gitlink 미등록 |
+| 커밋 | `43d6c3bb external: register submodule gitlinks`, `4d1060cf added some file`, `ad5fe00 cleaned readme.md`, `fa24aee Initial commit: Reconstructed project` |
+| `external/*` 6종 | **정상 클론 완료** — gitlink 6개 복원 + upstream 고정 커밋으로 체크아웃 ✅ |
 | `out/` | **없음 — 빌드 이력 전무** |
 | `security/` | `aosp_*` 키만 존재. `unica_platform.*` / `unica_ota.*` 없음 (정상, `.gitignore`) |
 | 문서 | `UN1CA_BUILD_GUIDE.md`(t2s 기준 개정), `README.md`(한국어 정리본), `CLAUDE.md` |
@@ -303,10 +304,7 @@ CI 는 GitHub Secrets 로 실제 키를 주입한다.
 
 ### 블로커 — 이것 없이는 빌드 불가
 
-1. **`external/` 6종 소스 부재 (최대 블로커).** `git submodule update --init --recursive` 가 no-op 이므로
-   `.gitmodules` 의 URL 로 **직접 클론**해야 한다:
-   `UN1CA/external_android-tools`, `iBotPeaches/Apktool`, `sekaiacg/erofs-utils`,
-   `UN1CA/external_img2sdat`, `ananjaser1211/samloader`, `UN1CA/external_signapk`
+1. ~~`external/` 6종 소스 부재~~ → **해결됨** (커밋 `43d6c3bb`, gitlink 복원 + 클론 완료)
 2. **JDK 17 부재** — apktool / signapk 의 Gradle 빌드가 JDK 26 에서 깨진다.
 3. **`lld` 부재** — erofs-utils / android-tools 를 clang + `ENABLE_FULL_LTO=ON` 으로 빌드할 때 필요.
 4. **erofs · f2fs 미로드** — 이미지 생성/마운트 단계에서 필요.
@@ -316,7 +314,7 @@ CI 는 GitHub Secrets 로 실제 키를 주입한다.
 - [ ] `sudo pacman -S --needed lld jdk17-openjdk` (또는 sdkman 으로 Temurin 17)
 - [ ] `JAVA_HOME` / `PATH` 를 JDK 17 로 고정 → `java -version` 이 17 인지 확인
 - [ ] `sudo modprobe erofs f2fs`
-- [ ] `external/` 6종을 `.gitmodules` URL 로 수동 클론
+- [x] `external/` 6종 서브모듈 초기화 (`git submodule update --init --recursive`) — 완료
 - [ ] `source buildenv.sh t2s` → `out/config.sh` 생성 및 `TARGET_NAME` / `ROM_VERSION` 출력 확인
       (`TARGET_NAME="Galaxy S21+ 5G (Exynos)"`, `TARGET_CODENAME="t2s"` 인지 확인)
 - [ ] `./scripts/print_modules_info.sh` 로 적용될 모듈 목록 확인

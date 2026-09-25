@@ -97,10 +97,6 @@ source buildenv.sh t2s                    # 빌드 환경 로드
 ./scripts/make_rom.sh -z                  # 메인 빌드 + 플래셔블 zip 생성
 ```
 
-> ⚠️ **이 저장소에서는 위 `git submodule update` 가 아무 출력 없이 끝나고 `external/*` 가 빈 채로 남는다.**
-> 재구성된 클론이라 gitlink 가 등록되어 있지 않기 때문이다. `.gitmodules` 의 URL 로 직접 클론해야 하며,
-> 자세한 내용은 **[UN1CA_BUILD_GUIDE.md](UN1CA_BUILD_GUIDE.md)** 5장과 `CLAUDE.md` 의 "알려진 함정" 참조.
-
 > 설치 패키지, JDK 17, 커널 모듈 등 환경 설정부터 단계별 빌드 방법·산출물 위치까지:
 > **[UN1CA_BUILD_GUIDE.md](UN1CA_BUILD_GUIDE.md)** 를 읽어주세요.
 

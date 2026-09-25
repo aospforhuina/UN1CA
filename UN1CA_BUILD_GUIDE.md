@@ -34,15 +34,14 @@ KnoxPatch, Play Integrity Fix, 다중 사용자, Debloat 등)을 얹은 **플래
 | Git 브랜치 | `main` |
 | Git 원격 | `https://github.com/aospforhuina/UN1CA` |
 | HEAD 커밋 | `ad5fe00 cleaned readme.md` (그 아래 `fa24aee Initial commit: Reconstructed project`) |
-| external 서브모듈 | **초기화 불가 — gitlink 미등록** (아래 ⚠️ 참조) |
+| external 서브모듈 | **정상 동작** (gitlink 등록 완료 — 아래 ℹ️ 참조) |
 | `out/` 디렉터리 | 없음 (아직 빌드 안 함) |
 | 작업 대상 | **`t2s`** = Galaxy S21+ 5G (Exynos), 실기기 SM-G996N |
 
-> ⚠️ **`git submodule update --init --recursive` 가 이 저장소에서는 동작하지 않습니다.**
-> 재구성된 클론이라 index 에 gitlink 엔트리(`160000`)가 없어서 위 명령이 **아무 출력 없이 no-op** 으로
-> 끝나고, `external/{android-tools,apktool,erofs-utils,img2sdat,samloader,signapk}` 는 **빈 디렉터리**로
-> 남습니다. 확인: `git ls-files -s | awk '$1=="160000"'` (아무것도 안 나오면 gitlink 없음).
-> → 5장의 "서브모듈 초기화" 대신 **`.gitmodules` 의 URL 로 직접 클론**해야 합니다.
+> ℹ️ 이 저장소는 재구성된 클론이라 한때 index 에 gitlink 엔트리(`160000`)가 없어
+> `git submodule update --init --recursive` 가 no-op 이었습니다. **2026-09-26 커밋에서 upstream
+> (`salvogiangri/UN1CA`, `sixteen`)의 gitlink 6개를 복원**했으므로 이제 정상 동작합니다.
+> 확인: `git submodule status` 에 6개가 SHA 와 함께 나오면 정상 (앞에 `-` 가 붙으면 미클론).
 
 ---
 
@@ -125,14 +124,10 @@ sudo modprobe erofs f2fs
 ```bash
 cd /home/arch/disk2/UN1CA
 
-# 1) 외부 툴 소스 6종 확보 — ★ 수동 클론 (서브모듈 명령이 동작하지 않음)
-#    git submodule update --init --recursive 는 이 저장소에서 no-op 이다 (2장 ⚠️ 참조)
-git clone https://github.com/UN1CA/external_android-tools.git      external/android-tools
-git clone https://github.com/iBotPeaches/Apktool.git               external/apktool
-git clone https://github.com/sekaiacg/erofs-utils.git              external/erofs-utils
-git clone https://github.com/UN1CA/external_img2sdat.git           external/img2sdat
-git clone https://github.com/ananjaser1211/samloader.git           external/samloader
-git clone https://github.com/UN1CA/external_signapk.git            external/signapk
+# 1) 외부 툴 소스 6종 확보 — 서브모듈 초기화 (upstream 고정 커밋으로 체크아웃됨)
+git submodule update --init --recursive
+#    ㄴ external/android-tools, apktool, erofs-utils, img2sdat, samloader, signapk
+#    확인: git submodule status (앞에 '-' 가 붙으면 미클론, SHA 만 나오면 정상)
 
 # 2) (권장) git 사용자 정보 — 일부 툴 빌드에서 필요할 수 있음
 git config --global user.name  "Your Name"
@@ -150,10 +145,10 @@ export PATH="$JAVA_HOME/bin:$PATH"
 java -version   # openjdk 17 확인
 ```
 
-> ⚠️ **gitlink 가 없으므로 각 서브모듈의 원래 고정 커밋을 알 수 없습니다.** 위처럼 기본 브랜치 HEAD 를
-> 클론하면 upstream 이 의도한 버전과 다를 수 있습니다. 특히 `external/apktool` 은
-> `external/patches/apktool/0001-feat-support-aapt-optimization.patch` 를 `git apply` 하므로
-> 패치가 실패하면 해당 시점에 맞는 태그/커밋으로 체크아웃해야 합니다.
+> ℹ️ 서브모듈은 `.gitmodules` 의 URL 로 자동 클론되며, **upstream 이 고정한 커밋으로 체크아웃**됩니다
+> (예: apktool `baa603f3`, erofs-utils `620bf019`). 별도로 버전을 맞출 필요가 없습니다.
+> `external/apktool` 은 `external/patches/apktool/0001-feat-support-aapt-optimization.patch` 를
+> `git apply` 하는데, 이 패치는 upstream 고정 커밋 기준이므로 그대로 적용됩니다.
 
 ## 6. 빌드 환경 불러오기 — `buildenv.sh`
 
@@ -204,7 +199,7 @@ UN1CA/
 ├── .github/
 │   ├── workflows/ci.yml     # CI: shellcheck + 모든 타겟 빌드 (Ubuntu 24.04)
 │   └── workflows/blobs.yml  # 매일 prebuilts 갱신 PR 생성 (서명 키 시크릿 사용)
-├── external/                # ★ 외부 툴 소스 — 수동 클론 필요 (gitlink 미등록, 5장 참조)
+├── external/                # ★ 서브모듈 (git submodule update --init --recursive)
 │   ├── android-tools/       #   구글 안드로이드 도구 포크 (adb/fastboot/e2fsdroid/lpmake/avbtool 등)
 │   ├── apktool/             #   APK 추출/리패키징 도구 (smali 패치 후 재빌드에 사용)
 │   ├── erofs-utils/         #   EROFS 파일시스템 도구 (mkfs/fsck/dump/extract.erofs)
@@ -329,8 +324,8 @@ UN1CA/
 ```bash
 cd /home/arch/disk2/UN1CA
 
-# 0) (위 5~6장 참고) external 6종 수동 클론 + JDK 17 / lld 설치
-#    ※ git submodule update --init --recursive 는 이 저장소에서 no-op
+# 0) (위 5~6장 참고) 서브모듈 초기화 + JDK 17 / lld 설치
+git submodule update --init --recursive
 
 # 1) 빌드 환경 로드 (매 새 터미널에서 실행)
 source buildenv.sh t2s
@@ -393,7 +388,8 @@ source buildenv.sh t2s
 
 | 증상 | 원인/해결 |
 |---|---|
-| `external/*` 이 비어 있다 | **이 저장소에서는 `git submodule update --init --recursive` 가 no-op 이다** (gitlink 미등록). 5장대로 `.gitmodules` URL 로 직접 클론할 것 |
+| `external/*` 이 비어 있다 | 서브모듈 미초기화 → `git submodule update --init --recursive` |
+| `git submodule status` 출력이 없다 | gitlink 가 index 에 없다 → `.gitmodules` URL 로 직접 클론 (5장) |
 | `The following dependencies are missing` | 4장의 패키지 누락 → 해당 패키지 설치 후 재시도 |
 | erofs/f2fs mount 실패 | `sudo modprobe erofs f2fs`, 커널은 리눅스(스톡) 권장 |
 | FUS 다운로드 실패/타임아웃 | 네트워크 문제가 흔함 → `./scripts/download_fw.sh -f` 로 재시도 |
